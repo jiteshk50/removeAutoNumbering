@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Question Numbering Converter</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <div class="container">
+    <nav class="top-nav">
+      <a class="btn" href="/">Home</a>
+    </nav>
+    <header>
+      <h1>Question Numbering Converter</h1>
+      <p>Convert Word's auto-numbered questions to plain text and remove indentation.</p>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-area">
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% endwith %}
+
+    <section class="card">
+      <form id="uploadForm" action="{{ url_for('start_multi') }}" method="post" enctype="multipart/form-data">
+        <div id="dropzone" class="dropzone">
+          <input id="fileInput" type="file" name="files" accept=".docx" multiple hidden>
+          <div class="dz-icon">📄</div>
+          <div class="dz-text">
+            <strong>Drag & drop</strong> one or more .docx here or
+            <button type="button" id="browseBtn" class="btn">Browse</button>
+          </div>
+          <div id="fileName" class="filename"></div>
+        </div>
+        <div id="progressWrap" class="progress-wrap" hidden>
+          <div class="progress-row">
+            <div class="progress-label">Upload</div>
+            <div class="progress-bar"><div id="uploadBar" class="bar" style="width:0%"></div></div>
+            <div id="uploadPct" class="progress-pct">0%</div>
+          </div>
+          <div id="filesList" class="file-list" hidden></div>
+        </div>
+        <div class="actions">
+          <button type="submit" class="btn primary">Convert</button>
+        </div>
+      </form>
+      <p class="hint">Only .docx files are supported. Microsoft Word must be installed on this system.</p>
+    </section>
+
+    <footer>
+      <div class="footer-left">
+        <a href="/">Home</a>
+        <a href="https://wa.me/919577158833" target="_blank">Contact via WhatsApp</a>
+      </div>
+      <div class="footer-right">© 2025 Jitesh @ 9577158833</div>
+    </footer>
+  </div>
+
+  <script>
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const browseBtn = document.getElementById('browseBtn');
+    const fileName = document.getElementById('fileName');
+    const form = document.getElementById('uploadForm');
+    const progressWrap = document.getElementById('progressWrap');
+    const uploadBar = document.getElementById('uploadBar');
+    const uploadPct = document.getElementById('uploadPct');
+    const filesList = document.getElementById('filesList');
+
+    browseBtn.addEventListener('click', () => fileInput.click());
+    function updateSelectedFiles() {
+      if (fileInput.files.length) {
+        const names = Array.from(fileInput.files).map(f => f.name);
+        fileName.textContent = names.length === 1 ? names[0] : `${names.length} files selected`;
+        dropzone.classList.add('has-file');
+      } else {
+        fileName.textContent = '';
+        dropzone.classList.remove('has-file');
+      }
+    }
+    fileInput.addEventListener('change', updateSelectedFiles);
+
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      const dt = e.dataTransfer;
+      if (dt.files.length) {
+        // Filter to .docx only
+        const files = Array.from(dt.files).filter(f => f.name.toLowerCase().endsWith('.docx'));
+        if (!files.length) { alert('Please drop .docx files only.'); return; }
+        const dataTransfer = new DataTransfer();
+        files.forEach(f => dataTransfer.items.add(f));
+        fileInput.files = dataTransfer.files;
+        updateSelectedFiles();
+      }
+    });
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!fileInput.files.length) { alert('Please choose one or more .docx files.'); return; }
+
+      const btns = form.querySelectorAll('button');
+      btns.forEach(b => b.disabled = true);
+      progressWrap.hidden = false;
+      uploadBar.style.width = '0%';
+      uploadPct.textContent = '0%';
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', form.action, true);
+      xhr.responseType = 'json';
+
+      xhr.upload.onprogress = (evt) => {
+        if (evt.lengthComputable) {
+          const pct = Math.round((evt.loaded / evt.total) * 100);
+          uploadBar.style.width = pct + '%';
+          uploadPct.textContent = pct + '%';
+        }
+      };
+
+      xhr.onload = () => {
+        btns.forEach(b => b.disabled = false);
+        if (xhr.status === 200) {
+          const resp = xhr.response; // { jobs: [{job_id, filename}, ...] }
+          if (!resp.jobs || !resp.jobs.length) { alert('No jobs were created.'); return; }
+          filesList.hidden = false;
+          filesList.innerHTML = '';
+          // Create UI rows for each job
+          resp.jobs.forEach(job => {
+            const row = document.createElement('div');
+            row.className = 'file-row';
+            row.innerHTML = `
+              <div class="file-name">${job.filename}</div>
+              <div class="progress-bar small"><div class="bar" style="width:0%"></div></div>
+              <div class="progress-pct">0%</div>
+              <button class="btn" disabled>Download</button>
+            `;
+            const bar = row.querySelector('.bar');
+            const pctEl = row.querySelector('.progress-pct');
+            const btn = row.querySelector('button');
+            filesList.appendChild(row);
+
+            const poll = () => {
+              fetch(`{{ url_for('progress', job_id='__JOB__') }}`.replace('__JOB__', job.job_id))
+                .then(r => r.json())
+                .then(j => {
+                  if (j.status === 'error') {
+                    const msg = j.error ? ('Error: ' + j.error) : 'Error';
+                    pctEl.textContent = msg;
+                    return;
+                  }
+                  const pct = Math.max(0, Math.min(100, j.processing_pct || 0));
+                  bar.style.width = pct + '%';
+                  pctEl.textContent = pct + '%';
+                  if (j.status === 'done' && pct >= 100) {
+                    btn.disabled = false;
+                    btn.textContent = 'Download';
+                    btn.onclick = () => {
+                      const dlUrl = `{{ url_for('result', job_id='__JOB__') }}`.replace('__JOB__', job.job_id);
+                      const a = document.createElement('a');
+                      a.href = dlUrl;
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                    };
+                  } else {
+                    setTimeout(poll, 600);
+                  }
+                })
+                .catch(() => setTimeout(poll, 800));
+            };
+            poll();
+          });
+        } else {
+          alert('Upload failed. Please ensure Word is installed and try again.');
+        }
+      };
+
+      xhr.onerror = () => {
+        btns.forEach(b => b.disabled = false);
+        alert('Network error during upload.');
+      };
+
+      const data = new FormData();
+      Array.from(fileInput.files).forEach(f => data.append('files', f));
+      xhr.send(data);
+    });
+  </script>
+</body>
+</html>

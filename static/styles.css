@@ -1,0 +1,38 @@
+:root{--bg:#0f172a;--panel:#111827;--text:#e5e7eb;--muted:#9ca3af;--accent:#6366f1;--accent-2:#8b5cf6;--error:#ef4444;--ok:#22c55e}
+*{box-sizing:border-box}html,body{margin:0;padding:0;height:100%;font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(135deg,#0f172a 0%,#0b1220 100%);color:var(--text)}
+.container{max-width:840px;margin:40px auto;padding:0 20px}
+header{margin-bottom:20px;text-align:center}
+header h1{margin:0;font-size:28px;font-weight:600}
+header p{margin:8px 0 0;color:var(--muted)}
+.card{background:rgba(17,24,39,0.8);backdrop-filter:blur(6px);border:1px solid rgba(99,102,241,0.2);border-radius:16px;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,0.35)}
+.dropzone{border:2px dashed rgba(99,102,241,0.5);border-radius:14px;padding:30px;text-align:center;transition:all .2s ease;cursor:pointer}
+.dropzone.dragover{border-color:var(--accent);background:rgba(99,102,241,0.08)}
+.dropzone.has-file{border-style:solid}
+.dz-icon{font-size:42px;line-height:1;margin-bottom:10px}
+.dz-text{color:var(--muted);margin-bottom:10px}
+.filename{color:var(--text);font-weight:500}
+.actions{display:flex;justify-content:center;margin-top:16px}
+.btn{background:transparent;border:1px solid rgba(229,231,235,0.2);color:var(--text);padding:10px 16px;border-radius:10px;cursor:pointer;transition:all .15s}
+.btn:hover{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,0.15)}
+.btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));border:none;color:white;font-weight:600}
+.hint{color:var(--muted);margin-top:10px;text-align:center}
+.flash-area{margin-bottom:12px}
+.flash{padding:10px 14px;border-radius:10px;margin:8px 0}
+.flash.error{background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#fecaca}
+.flash.success{background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);color:#bbf7d0}
+nav.top-nav{display:flex;justify-content:flex-end;margin-bottom:10px}
+nav.top-nav .btn{padding:6px 10px}
+footer{margin-top:22px;display:flex;justify-content:space-between;align-items:center}
+footer a{color:var(--muted);text-decoration:none;margin-right:10px}
+footer a:hover{color:var(--text)}
+
+/* Progress bars */
+.progress-wrap{margin-top:16px}
+.progress-row{display:flex;align-items:center;gap:12px;margin:10px 0}
+.progress-label{min-width:90px;color:var(--muted);font-size:14px}
+.progress-bar{position:relative;flex:1;height:10px;background:rgba(99,102,241,0.15);border-radius:999px;overflow:hidden}
+.progress-bar .bar{height:100%;background:linear-gradient(135deg,var(--accent),var(--accent-2));border-radius:999px 0 0 999px;transition:width .2s ease}
+.progress-pct{min-width:42px;text-align:right;color:var(--text);font-variant-numeric:tabular-nums}
+.progress-bar.indeterminate{overflow:hidden}
+.progress-bar.indeterminate .bar{position:absolute;left:-40%;width:40%;animation:indet 1.2s infinite ease-in-out;background:linear-gradient(135deg,var(--accent),var(--accent-2));border-radius:999px}
+@keyframes indet{0%{left:-40%}50%{left:30%;width:70%}100%{left:100%;width:40%}}
