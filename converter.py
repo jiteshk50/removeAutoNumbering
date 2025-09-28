@@ -3,6 +3,9 @@ import time
 import re
 import pythoncom
 import win32com.client as win32
+import win32com as win32com_root
+import shutil
+from win32com.client import dynamic
 from win32com.client import constants
 
 
@@ -29,6 +32,49 @@ def is_question_paragraph(p):
         return is_list and is_numbered and at_top_level
     except Exception:
         return False
+
+
+def _ensure_word_dispatch():
+    """
+    Create a Word COM automation object, handling a corrupted pywin32 gen_py cache.
+    Tries EnsureDispatch first; if it fails with AttributeError caused by a bad
+    generated cache (missing CLSIDToClassMap), it clears the cache and retries.
+    Falls back to dynamic Dispatch as a last resort.
+    """
+    try:
+        return win32.gencache.EnsureDispatch("Word.Application")
+    except AttributeError:
+        # First try to rebuild the cache programmatically
+        try:
+            win32.gencache.Rebuild()
+            return win32.gencache.EnsureDispatch("Word.Application")
+        except Exception:
+            pass
+        # Attempt to clear pywin32 generated cache directories and retry
+        try:
+            gen_paths = []
+            try:
+                gen_paths.append(getattr(win32com_root, "__gen_path__", None))
+            except Exception:
+                pass
+            local = os.environ.get("LOCALAPPDATA")
+            if local:
+                gen_paths.append(os.path.join(local, "Temp", "gen_py"))
+            for p in gen_paths:
+                if p and os.path.isdir(p):
+                    try:
+                        shutil.rmtree(p, ignore_errors=True)
+                    except Exception:
+                        pass
+            # Retry EnsureDispatch with a fresh cache
+            try:
+                return win32.gencache.EnsureDispatch("Word.Application")
+            except Exception:
+                pass
+        except Exception:
+            pass
+        # Final fallback: dynamic dispatch avoids makepy/gen_py entirely
+        return dynamic.Dispatch("Word.Application")
 
 
 def convert_questions_to_text(doc, progress=None):
@@ -96,7 +142,7 @@ def process_doc(input_path: str, output_path: str | None = None, visible: bool =
     word = None
     doc = None
     try:
-        word = win32.gencache.EnsureDispatch("Word.Application")
+        word = _ensure_word_dispatch()
         word.Visible = visible
 
         doc = word.Documents.Open(os.path.abspath(input_path))
